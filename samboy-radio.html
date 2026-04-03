@@ -592,6 +592,40 @@
     text-shadow: 0 0 6px rgba(0,204,68,0.4);
     padding-left: 100%;
   }
+
+  /* ========== MOBILE RESPONSIVE ========== */
+  @media (max-width: 620px) {
+    body {
+      align-items: flex-start;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+    #winamp-container {
+      width: 100vw;
+      min-height: 100vh;
+      border-radius: 0;
+      filter: none;
+    }
+    #main-player {
+      border-radius: 0;
+    }
+    #branding {
+      border-radius: 0;
+    }
+    #playlist-area {
+      max-height: none;
+    }
+    #spotify-embed-wrapper {
+      height: 352px;
+    }
+    .transport-btn {
+      width: 52px;
+      height: 40px;
+    }
+    #mini-bar {
+      border-radius: 0;
+    }
+  }
 </style>
 </head>
 <body>
