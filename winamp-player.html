@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Samboy Radio</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #1a1a2e;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: 'Tahoma', 'Segoe UI', sans-serif;
+    overflow: hidden;
+  }
+
+  /* Animated background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 20% 50%, rgba(30, 60, 40, 0.4) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 50%, rgba(40, 30, 60, 0.4) 0%, transparent 60%),
+      #0a0a14;
+    z-index: 0;
+  }
+
+  #winamp-container {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    width: 580px;
+    user-select: none;
+    filter: drop-shadow(0 8px 32px rgba(0,0,0,0.6));
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  /* ========== TITLE BAR (shared) ========== */
+  .title-bar {
+    height: 28px;
+    background: linear-gradient(180deg, #4a6a4a 0%, #2a3a2a 50%, #1a2a1a 100%);
+    border: 1px solid #1a1a1a;
+    border-bottom: none;
+    display: flex;
+    align-items: center;
+    padding: 0 3px;
+    cursor: move;
+    position: relative;
+  }
+  .title-bar-text {
+    font-size: 11px;
+    color: #c0d0c0;
+    letter-spacing: 0.5px;
+    font-weight: bold;
+    flex: 1;
+    text-align: center;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.5);
+  }
+  .title-bar-btn {
+    width: 20px;
+    height: 20px;
+    border: 1px solid #0a0a0a;
+    border-radius: 4px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    margin-left: 1px;
+    color: #a0b0a0;
+  }
+  .btn-minimize { background: linear-gradient(180deg, #5a7a5a, #3a4a3a); }
+  .btn-shade { background: linear-gradient(180deg, #5a7a5a, #3a4a3a); }
+  .btn-close { background: linear-gradient(180deg, #7a5a5a, #4a3a3a); }
+  .title-bar-btn:hover { filter: brightness(1.3); }
+
+  /* ========== MAIN PLAYER ========== */
+  #main-player {
+    background: linear-gradient(180deg, #2a2a2a 0%, #1e1e1e 100%);
+    border: 1px solid #0a0a0a;
+    border-radius: 0;
+    overflow: hidden;
+  }
+
+  /* Visualization area */
+  #viz-area {
+    height: 52px;
+    margin: 4px 6px;
+    background: #0a0a0a;
+    border: 1px inset #333;
+    position: relative;
+    overflow: hidden;
+  }
+  #viz-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  /* Marquee / track info */
+  #track-display {
+    margin: 2px 6px;
+    height: 22px;
+    background: #0a0a0a;
+    border: 1px inset #333;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    position: relative;
+  }
+  #track-marquee {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    color: #00cc44;
+    white-space: nowrap;
+    animation: marquee 12s linear infinite;
+    text-shadow: 0 0 6px rgba(0,204,68,0.4);
+    padding-left: 100%;
+  }
+  @keyframes marquee {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-100%); }
+  }
+
+  /* Time + bitrate display */
+  #info-row {
+    display: flex;
+    align-items: center;
+    padding: 4px 6px;
+    gap: 6px;
+  }
+  .info-display {
+    background: #0a0a0a;
+    border: 1px inset #333;
+    padding: 3px 6px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    color: #00cc44;
+    text-shadow: 0 0 4px rgba(0,204,68,0.3);
+  }
+  #time-display { flex: 0 0 auto; }
+  .info-label {
+    font-size: 8px;
+    color: #666;
+    font-weight: bold;
+  }
+  .info-value {
+    font-size: 8px;
+    color: #00cc44;
+    font-family: 'Press Start 2P', monospace;
+  }
+
+  /* Seek bar */
+  #seek-area {
+    padding: 4px 6px;
+  }
+  #seek-bar {
+    width: 100%;
+    height: 12px;
+    background: #0a0a0a;
+    border: 1px inset #333;
+    position: relative;
+    cursor: pointer;
+    border-radius: 4px;
+  }
+  #seek-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #336633, #44aa44, #66cc66);
+    width: 35%;
+    border-radius: 4px;
+    transition: width 0.3s linear;
+  }
+  #seek-thumb {
+    position: absolute;
+    top: -3px;
+    left: 35%;
+    width: 14px;
+    height: 18px;
+    background: linear-gradient(180deg, #888, #555);
+    border: 1px solid #333;
+    border-radius: 2px;
+    transform: translateX(-50%);
+    cursor: pointer;
+    transition: left 0.3s linear;
+  }
+
+  /* Volume + Balance */
+  #vol-bal-row {
+    display: flex;
+    padding: 4px 6px;
+    gap: 6px;
+    align-items: center;
+  }
+  .slider-group {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex: 1;
+  }
+  .slider-label {
+    font-size: 9px;
+    color: #888;
+    font-weight: bold;
+    width: 28px;
+  }
+  .mini-slider {
+    flex: 1;
+    height: 10px;
+    background: #0a0a0a;
+    border: 1px inset #333;
+    position: relative;
+    cursor: pointer;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .mini-slider-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #336633, #44aa44);
+  }
+  #vol-fill { width: 72%; }
+  #bal-fill { width: 50%; }
+
+  /* Transport buttons */
+  #transport-row {
+    display: flex;
+    justify-content: center;
+    padding: 8px 6px 10px;
+    gap: 6px;
+  }
+  .transport-btn {
+    width: 48px;
+    height: 36px;
+    border-radius: 5px;
+    background: linear-gradient(180deg, #4a4a4a 0%, #333 40%, #2a2a2a 100%);
+    border: 1px solid #1a1a1a;
+    border-top-color: #555;
+    border-left-color: #555;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+  }
+  .transport-btn:hover {
+    background: linear-gradient(180deg, #5a5a5a 0%, #444 40%, #3a3a3a 100%);
+  }
+  .transport-btn:active {
+    background: linear-gradient(180deg, #2a2a2a 0%, #333 40%, #4a4a4a 100%);
+    border-top-color: #1a1a1a;
+    border-left-color: #1a1a1a;
+    border-bottom-color: #555;
+    border-right-color: #555;
+  }
+  .transport-btn svg {
+    width: 16px;
+    height: 16px;
+    fill: #c0c0c0;
+  }
+  .transport-btn:hover svg { fill: #e0e0e0; }
+  .transport-btn.active { background: linear-gradient(180deg, #3a5a3a 0%, #2a4a2a 40%, #1a3a1a 100%); }
+  .transport-btn.active svg { fill: #66cc66; }
+
+  /* Status indicators */
+  #status-row {
+    display: flex;
+    padding: 0 4px 2px;
+    gap: 6px;
+    justify-content: center;
+  }
+  .status-led {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: 1px solid #333;
+  }
+  .led-green { background: #00aa44; box-shadow: 0 0 4px rgba(0,170,68,0.5); }
+  .led-yellow { background: #aa8800; box-shadow: 0 0 4px rgba(170,136,0,0.3); }
+  .led-off { background: #333; }
+
+  /* Toggle buttons */
+  #toggle-row {
+    display: flex;
+    padding: 0 4px 6px;
+    gap: 4px;
+    justify-content: center;
+  }
+  .toggle-btn {
+    padding: 6px 14px;
+    font-size: 10px;
+    border-radius: 4px;
+    font-weight: bold;
+    color: #888;
+    background: linear-gradient(180deg, #3a3a3a, #2a2a2a);
+    border: 1px solid #1a1a1a;
+    border-top-color: #444;
+    border-left-color: #444;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+  }
+  .toggle-btn.active {
+    color: #66cc66;
+    background: linear-gradient(180deg, #2a3a2a, #1a2a1a);
+    border-top-color: #1a1a1a;
+    border-left-color: #1a1a1a;
+    border-bottom-color: #3a4a3a;
+    border-right-color: #3a4a3a;
+  }
+  .toggle-btn:hover { color: #aaa; }
+  .toggle-btn.active:hover { color: #88ee88; }
+
+  /* ========== EQUALIZER ========== */
+  #eq-window {
+    background: linear-gradient(180deg, #2a2a2a 0%, #1e1e1e 100%);
+    border: 1px solid #0a0a0a;
+    border-top: none;
+  }
+  #eq-area {
+    display: flex;
+    padding: 6px 10px 8px;
+    gap: 5px;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .eq-band {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .eq-slider-track {
+    width: 14px;
+    height: 70px;
+    background: #0a0a0a;
+    border: 1px inset #333;
+    position: relative;
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .eq-slider-fill {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(180deg, #66cc66, #338833, #226622);
+    border-radius: 1px;
+    pointer-events: none;
+  }
+  .eq-slider-thumb {
+    position: absolute;
+    left: -3px;
+    right: -3px;
+    height: 8px;
+    background: linear-gradient(180deg, #aaa, #666);
+    border: 1px solid #444;
+    border-radius: 2px;
+    pointer-events: none;
+  }
+  .eq-label {
+    font-size: 8px;
+    color: #666;
+    font-weight: bold;
+  }
+  .eq-preamp {
+    width: 16px;
+    margin-right: 6px;
+  }
+  .eq-preamp .eq-slider-track {
+    width: 16px;
+  }
+  .eq-preamp .eq-slider-fill {
+    background: linear-gradient(180deg, #cc6666, #883333, #662222);
+  }
+
+  #eq-toggle-row {
+    display: flex;
+    padding: 2px 10px 6px;
+    gap: 6px;
+  }
+  .eq-toggle {
+    font-size: 10px;
+    font-weight: bold;
+    padding: 5px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid #333;
+    background: #2a2a2a;
+    color: #888;
+  }
+  .eq-toggle.active { color: #66cc66; background: #1a2a1a; }
+  .eq-preset {
+    font-size: 9px;
+    color: #666;
+    margin-left: auto;
+    padding: 3px 8px;
+    cursor: pointer;
+  }
+  .eq-preset:hover { color: #aaa; }
+
+  /* ========== PLAYLIST ========== */
+  #playlist-window {
+    background: linear-gradient(180deg, #2a2a2a 0%, #1e1e1e 100%);
+    border: 1px solid #0a0a0a;
+    border-top: none;
+  }
+  #playlist-area {
+    margin: 2px 4px;
+    background: #0a0a0a;
+    border: 1px inset #333;
+    max-height: 352px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Spotify embed lives here */
+  #spotify-embed-wrapper {
+    width: 100%;
+    height: 352px;
+  }
+  #spotify-embed-wrapper iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    border-radius: 0;
+  }
+
+  /* Playlist bottom bar */
+  #playlist-bottom {
+    display: flex;
+    padding: 5px 6px;
+    justify-content: space-between;
+    align-items: center;
+  }
+  #playlist-info {
+    font-size: 9px;
+    color: #666;
+    font-weight: bold;
+  }
+  #playlist-btns {
+    display: flex;
+    gap: 2px;
+  }
+  .pl-btn {
+    padding: 5px 12px;
+    font-size: 9px;
+    border-radius: 4px;
+    font-weight: bold;
+    color: #888;
+    background: linear-gradient(180deg, #3a3a3a, #2a2a2a);
+    border: 1px solid #1a1a1a;
+    border-top-color: #444;
+    border-left-color: #444;
+    cursor: pointer;
+    letter-spacing: 0.3px;
+  }
+  .pl-btn:hover { color: #ccc; }
+
+  /* ========== BRANDING ========== */
+  #branding {
+    text-align: center;
+    padding: 8px;
+    font-size: 9px;
+    color: #444;
+    letter-spacing: 1px;
+    background: #1a1a1a;
+    border: 1px solid #0a0a0a;
+    border-top: none;
+    border-radius: 0 0 10px 10px;
+  }
+  #branding span { color: #666; }
+
+  /* Drag state */
+  .dragging { opacity: 0.9; }
+
+  /* ========== EQ OFF STATE ========== */
+  #eq-area.eq-off .eq-slider-fill { background: linear-gradient(180deg, #555, #333, #222); }
+  #eq-area.eq-off .eq-slider-thumb { background: linear-gradient(180deg, #666, #444); }
+  .eq-preamp .eq-slider-fill { background: linear-gradient(180deg, #cc6666, #883333, #662222) !important; }
+
+  /* ========== SHADE MODE ========== */
+  #winamp-container.shade-mode #main-player .title-bar ~ *:not(#shade-bar) { display: none; }
+  #winamp-container.shade-mode #eq-window { display: none !important; }
+  #winamp-container.shade-mode #playlist-window { display: none !important; }
+  #winamp-container.shade-mode #branding { display: none; }
+  #winamp-container.shade-mode #mini-bar { display: none; }
+  #winamp-container.shade-mode #shade-bar { display: flex; }
+  #winamp-container.shade-mode #main-player { border-radius: 0 0 10px 10px; }
+
+  #shade-bar {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    background: #1e1e1e;
+  }
+  #shade-bar .shade-marquee-wrap {
+    flex: 1;
+    height: 14px;
+    background: #0a0a0a;
+    border: 1px inset #333;
+    border-radius: 3px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+  }
+  #shade-bar .shade-marquee {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 6px;
+    color: #00cc44;
+    white-space: nowrap;
+    animation: marquee 12s linear infinite;
+    text-shadow: 0 0 6px rgba(0,204,68,0.4);
+    padding-left: 100%;
+  }
+  #shade-bar .shade-time {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 7px;
+    color: #00cc44;
+    text-shadow: 0 0 4px rgba(0,204,68,0.3);
+    white-space: nowrap;
+  }
+  #shade-bar .shade-viz {
+    width: 60px;
+    height: 14px;
+    background: #0a0a0a;
+    border: 1px inset #333;
+    border-radius: 3px;
+  }
+
+  /* ========== MINIMIZED STATE ========== */
+  #winamp-container.minimized #main-player .title-bar ~ * { display: none; }
+  #winamp-container.minimized #eq-window { display: none !important; }
+  #winamp-container.minimized #playlist-window { display: none !important; }
+  #winamp-container.minimized #branding { display: none; }
+  #winamp-container.minimized #mini-bar { display: flex; }
+  #winamp-container.minimized #main-player { border-radius: 0 0 10px 10px; }
+
+  #mini-bar {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: #1a1a1a;
+    border: 1px solid #0a0a0a;
+    border-top: none;
+    border-radius: 0 0 10px 10px;
+    overflow: hidden;
+  }
+  #mini-bar .mini-transport {
+    display: flex;
+    gap: 3px;
+  }
+  #mini-bar .mini-btn {
+    width: 24px;
+    height: 20px;
+    background: linear-gradient(180deg, #4a4a4a, #2a2a2a);
+    border: 1px solid #1a1a1a;
+    border-top-color: #555;
+    border-left-color: #555;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  #mini-bar .mini-btn svg { width: 8px; height: 8px; fill: #c0c0c0; }
+  #mini-bar .mini-btn:hover svg { fill: #e0e0e0; }
+  #mini-marquee-wrap {
+    flex: 1;
+    height: 16px;
+    background: #0a0a0a;
+    border: 1px inset #333;
+    border-radius: 3px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+  }
+  #mini-marquee {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 7px;
+    color: #00cc44;
+    white-space: nowrap;
+    animation: marquee 12s linear infinite;
+    text-shadow: 0 0 6px rgba(0,204,68,0.4);
+    padding-left: 100%;
+  }
+</style>
+</head>
+<body>
+
+<div id="winamp-container">
+
+  <!-- ===== MAIN PLAYER ===== -->
+  <div id="main-player">
+    <div class="title-bar" id="drag-handle">
+      <div class="title-bar-btn btn-minimize" title="Minimize">_</div>
+      <div class="title-bar-text">SAMBOY RADIO</div>
+      <div class="title-bar-btn btn-shade" title="Shade">▬</div>
+      <div class="title-bar-btn btn-close" title="Close">×</div>
+    </div>
+
+    <div id="viz-area">
+      <canvas id="viz-canvas"></canvas>
+    </div>
+
+    <div id="track-display">
+      <div id="track-marquee">*** SAMBOY RADIO *** NOW STREAMING *** VIBES ONLY *** CLICK PLAY IN THE SPOTIFY PLAYER BELOW ***</div>
+    </div>
+
+    <div id="info-row">
+      <div class="info-display" id="time-display">03:42</div>
+      <span class="info-label">kbps</span><span class="info-value">320</span>
+      <span class="info-label">kHz</span><span class="info-value">44</span>
+      <div style="flex:1"></div>
+      <div id="status-row">
+        <div class="status-led led-green" title="Connected"></div>
+        <div class="status-led led-yellow" title="Streaming"></div>
+        <div class="status-led led-off" title="Mono/Stereo"></div>
+      </div>
+    </div>
+
+    <div id="seek-area">
+      <div id="seek-bar">
+        <div id="seek-fill"></div>
+        <div id="seek-thumb"></div>
+      </div>
+    </div>
+
+    <div id="vol-bal-row">
+      <div class="slider-group">
+        <span class="slider-label">VOL</span>
+        <div class="mini-slider"><div class="mini-slider-fill" id="vol-fill"></div></div>
+      </div>
+      <div class="slider-group">
+        <span class="slider-label">BAL</span>
+        <div class="mini-slider"><div class="mini-slider-fill" id="bal-fill"></div></div>
+      </div>
+    </div>
+
+    <div id="transport-row">
+      <div class="transport-btn" title="Previous" id="btn-prev">
+        <svg viewBox="0 0 12 12"><rect x="1" y="2" width="2" height="8"/><polygon points="11,2 4,6 11,10"/></svg>
+      </div>
+      <div class="transport-btn active" title="Play" id="btn-play">
+        <svg viewBox="0 0 12 12"><polygon points="3,1 10,6 3,11"/></svg>
+      </div>
+      <div class="transport-btn" title="Pause" id="btn-pause">
+        <svg viewBox="0 0 12 12"><rect x="2" y="2" width="3" height="8"/><rect x="7" y="2" width="3" height="8"/></svg>
+      </div>
+      <div class="transport-btn" title="Stop" id="btn-stop">
+        <svg viewBox="0 0 12 12"><rect x="2" y="2" width="8" height="8"/></svg>
+      </div>
+      <div class="transport-btn" title="Next" id="btn-next">
+        <svg viewBox="0 0 12 12"><polygon points="1,2 8,6 1,10"/><rect x="9" y="2" width="2" height="8"/></svg>
+      </div>
+      <div class="transport-btn" title="Open/Eject" id="btn-eject">
+        <svg viewBox="0 0 12 12"><polygon points="2,7 6,2 10,7"/><rect x="2" y="9" width="8" height="2"/></svg>
+      </div>
+    </div>
+
+    <div id="toggle-row">
+      <div class="toggle-btn active" id="btn-eq-toggle">EQ</div>
+      <div class="toggle-btn active" id="btn-pl-toggle">PL</div>
+      <div class="toggle-btn" id="btn-shuffle">SHUF</div>
+      <div class="toggle-btn" id="btn-repeat">RPT</div>
+    </div>
+
+    <!-- Shade mode bar -->
+    <div id="shade-bar">
+      <div class="shade-viz"><canvas id="shade-viz-canvas" width="120" height="28"></canvas></div>
+      <div class="shade-marquee-wrap">
+        <div class="shade-marquee">*** SAMBOY RADIO *** NOW STREAMING *** VIBES ONLY ***</div>
+      </div>
+      <div class="shade-time" id="shade-time">00:00</div>
+    </div>
+  </div>
+
+  <!-- ===== EQUALIZER ===== -->
+  <div id="eq-window">
+    <div class="title-bar">
+      <div class="title-bar-text">EQUALIZER</div>
+    </div>
+    <div id="eq-toggle-row">
+      <div class="eq-toggle active" id="eq-on-btn">ON</div>
+      <div class="eq-toggle">AUTO</div>
+      <div class="eq-preset">PRESETS ▸</div>
+    </div>
+    <div id="eq-area">
+      <div class="eq-band eq-preamp">
+        <div class="eq-slider-track" data-eq="preamp"><div class="eq-slider-fill" style="height:70%"></div><div class="eq-slider-thumb" style="bottom:70%"></div></div>
+        <div class="eq-label">PRE</div>
+      </div>
+      <div class="eq-band"><div class="eq-slider-track" data-eq="0"><div class="eq-slider-fill" data-band="0" style="height:45%"></div><div class="eq-slider-thumb" style="bottom:45%"></div></div><div class="eq-label">60</div></div>
+      <div class="eq-band"><div class="eq-slider-track" data-eq="1"><div class="eq-slider-fill" data-band="1" style="height:55%"></div><div class="eq-slider-thumb" style="bottom:55%"></div></div><div class="eq-label">170</div></div>
+      <div class="eq-band"><div class="eq-slider-track" data-eq="2"><div class="eq-slider-fill" data-band="2" style="height:65%"></div><div class="eq-slider-thumb" style="bottom:65%"></div></div><div class="eq-label">310</div></div>
+      <div class="eq-band"><div class="eq-slider-track" data-eq="3"><div class="eq-slider-fill" data-band="3" style="height:70%"></div><div class="eq-slider-thumb" style="bottom:70%"></div></div><div class="eq-label">600</div></div>
+      <div class="eq-band"><div class="eq-slider-track" data-eq="4"><div class="eq-slider-fill" data-band="4" style="height:80%"></div><div class="eq-slider-thumb" style="bottom:80%"></div></div><div class="eq-label">1K</div></div>
+      <div class="eq-band"><div class="eq-slider-track" data-eq="5"><div class="eq-slider-fill" data-band="5" style="height:75%"></div><div class="eq-slider-thumb" style="bottom:75%"></div></div><div class="eq-label">3K</div></div>
+      <div class="eq-band"><div class="eq-slider-track" data-eq="6"><div class="eq-slider-fill" data-band="6" style="height:60%"></div><div class="eq-slider-thumb" style="bottom:60%"></div></div><div class="eq-label">6K</div></div>
+      <div class="eq-band"><div class="eq-slider-track" data-eq="7"><div class="eq-slider-fill" data-band="7" style="height:50%"></div><div class="eq-slider-thumb" style="bottom:50%"></div></div><div class="eq-label">12K</div></div>
+      <div class="eq-band"><div class="eq-slider-track" data-eq="8"><div class="eq-slider-fill" data-band="8" style="height:40%"></div><div class="eq-slider-thumb" style="bottom:40%"></div></div><div class="eq-label">14K</div></div>
+      <div class="eq-band"><div class="eq-slider-track" data-eq="9"><div class="eq-slider-fill" data-band="9" style="height:35%"></div><div class="eq-slider-thumb" style="bottom:35%"></div></div><div class="eq-label">16K</div></div>
+    </div>
+  </div>
+
+  <!-- ===== PLAYLIST ===== -->
+  <div id="playlist-window">
+    <div class="title-bar">
+      <div class="title-bar-text">PLAYLIST</div>
+    </div>
+    <div id="playlist-area">
+      <div id="spotify-embed-wrapper">
+        <iframe
+          src="https://open.spotify.com/embed/playlist/6iiNSBGjewuCjgCoFh21AF?utm_source=generator&theme=0"
+          allowfullscreen=""
+          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+          loading="lazy"
+        ></iframe>
+      </div>
+    </div>
+    <div id="playlist-bottom">
+      <div id="playlist-info">SPOTIFY PLAYLIST — CLICK ABOVE TO PLAY</div>
+      <div id="playlist-btns">
+        <div class="pl-btn">+ADD</div>
+        <div class="pl-btn">-REM</div>
+        <div class="pl-btn">SEL</div>
+        <div class="pl-btn">MISC</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mini bar (visible when minimized) -->
+  <div id="mini-bar">
+    <div class="mini-transport">
+      <div class="mini-btn" title="Previous"><svg viewBox="0 0 12 12"><rect x="1" y="2" width="2" height="8"/><polygon points="11,2 4,6 11,10"/></svg></div>
+      <div class="mini-btn" title="Play"><svg viewBox="0 0 12 12"><polygon points="3,1 10,6 3,11"/></svg></div>
+      <div class="mini-btn" title="Next"><svg viewBox="0 0 12 12"><polygon points="1,2 8,6 1,10"/><rect x="9" y="2" width="2" height="8"/></svg></div>
+    </div>
+    <div id="mini-marquee-wrap">
+      <div id="mini-marquee">*** SAMBOY RADIO *** NOW STREAMING *** VIBES ON DEMAND ***</div>
+    </div>
+  </div>
+
+  <div id="branding">
+    <span>SAMBOY RADIO</span> v1.0 — VIBES ON DEMAND
+  </div>
+</div>
+
+<script>
+// ========== REFS ==========
+const container = document.getElementById('winamp-container');
+const canvas = document.getElementById('viz-canvas');
+const ctx = canvas.getContext('2d');
+const shadeCanvas = document.getElementById('shade-viz-canvas');
+const shadeCtx = shadeCanvas.getContext('2d');
+
+function resizeCanvas() {
+  canvas.width = canvas.offsetWidth * 2;
+  canvas.height = canvas.offsetHeight * 2;
+  ctx.scale(2, 2);
+}
+resizeCanvas();
+
+// ========== VISUALIZER ==========
+const BAR_COUNT = 48;
+const barHeights = new Float32Array(BAR_COUNT);
+const barTargets = new Float32Array(BAR_COUNT);
+const barPeaks = new Float32Array(BAR_COUNT);
+const barPeakDecay = new Float32Array(BAR_COUNT);
+
+for (let i = 0; i < BAR_COUNT; i++) {
+  barHeights[i] = Math.random() * 0.5;
+  barTargets[i] = Math.random() * 0.8;
+  barPeaks[i] = barHeights[i];
+}
+
+let vizMode = 'bars'; // 'bars', 'scope', 'off'
+let vizTime = 0;
+let isPlaying = true; // controls whether viz animates
+
+function drawBarsOn(context, width, height, count) {
+  context.clearRect(0, 0, width, height);
+  const barWidth = width / count - 1;
+
+  for (let i = 0; i < count; i++) {
+    if (isPlaying) {
+      barTargets[i] = 0.2 + Math.abs(Math.sin(vizTime * 0.03 + i * 0.4)) * 0.6
+        + Math.sin(vizTime * 0.07 + i * 0.2) * 0.15
+        + Math.random() * 0.1;
+    } else {
+      barTargets[i] *= 0.95; // decay to silence
+    }
+    barTargets[i] = Math.min(1, Math.max(0, barTargets[i]));
+    barHeights[i] += (barTargets[i] - barHeights[i]) * 0.25;
+
+    if (barHeights[i] > barPeaks[i]) {
+      barPeaks[i] = barHeights[i];
+      barPeakDecay[i] = 0;
+    } else {
+      barPeakDecay[i] += 0.015;
+      barPeaks[i] -= barPeakDecay[i] * 0.02;
+      barPeaks[i] = Math.max(barPeaks[i], barHeights[i]);
+    }
+
+    const x = i * (barWidth + 1);
+    const barH = barHeights[i] * height;
+    const segments = Math.floor(barH / 2.5);
+
+    for (let s = 0; s < segments; s++) {
+      const y = height - s * 2.5 - 2;
+      const ratio = s / (height / 2.5);
+      let r, g, b;
+      if (ratio < 0.5) {
+        r = Math.floor(34 + ratio * 2 * 34); g = Math.floor(170 + ratio * 2 * 34); b = 34;
+      } else if (ratio < 0.8) {
+        r = Math.floor(68 + (ratio-0.5)*3.33*136); g = 204; b = 34;
+      } else {
+        r = Math.floor(204 + (ratio-0.8)*5*51); g = Math.floor(204 - (ratio-0.8)*5*170); b = 34;
+      }
+      context.fillStyle = `rgb(${r},${g},${b})`;
+      context.fillRect(x, y, barWidth, 1.5);
+    }
+
+    const peakY = height - barPeaks[i] * height;
+    context.fillStyle = '#ffcc00';
+    context.fillRect(x, peakY, barWidth, 1);
+  }
+}
+
+function drawScope(context, width, height) {
+  context.clearRect(0, 0, width, height);
+  context.beginPath();
+  context.strokeStyle = '#44cc66';
+  context.lineWidth = 1;
+  context.shadowBlur = 4;
+  context.shadowColor = 'rgba(68, 204, 102, 0.5)';
+
+  const amp = isPlaying ? 1 : Math.max(0, 1 - vizTime * 0.001);
+  for (let x = 0; x < width; x++) {
+    const t = x / width * Math.PI * 8;
+    const y = height / 2 +
+      Math.sin(t + vizTime * 0.08) * height * 0.25 * amp +
+      Math.sin(t * 2.3 + vizTime * 0.05) * height * 0.1 * amp +
+      Math.sin(t * 5.7 + vizTime * 0.12) * height * 0.05 * amp;
+    if (x === 0) context.moveTo(x, y);
+    else context.lineTo(x, y);
+  }
+  context.stroke();
+  context.shadowBlur = 0;
+}
+
+function animateViz() {
+  requestAnimationFrame(animateViz);
+  if (isPlaying) vizTime++;
+
+  // Main visualizer
+  const w = canvas.offsetWidth, h = canvas.offsetHeight;
+  if (vizMode === 'bars') drawBarsOn(ctx, w, h, BAR_COUNT);
+  else if (vizMode === 'scope') drawScope(ctx, w, h);
+  else { ctx.clearRect(0, 0, w, h); } // off
+
+  // Shade mini viz (always bars, 8 bars)
+  if (container.classList.contains('shade-mode')) {
+    const sw = shadeCanvas.width, sh = shadeCanvas.height;
+    shadeCtx.clearRect(0, 0, sw, sh);
+    const miniBarW = sw / 8 - 1;
+    for (let i = 0; i < 8; i++) {
+      const mapped = Math.floor(i * BAR_COUNT / 8);
+      const bh = barHeights[mapped] * sh;
+      const segs = Math.floor(bh / 3);
+      for (let s = 0; s < segs; s++) {
+        const ratio = s / (sh / 3);
+        const g = ratio < 0.7 ? 180 : (ratio < 0.9 ? 220 : 100);
+        const r = ratio < 0.7 ? 40 : (ratio < 0.9 ? 180 : 240);
+        shadeCtx.fillStyle = `rgb(${r},${g},34)`;
+        shadeCtx.fillRect(i * (miniBarW + 1), sh - s * 3 - 2, miniBarW, 2);
+      }
+    }
+  }
+}
+animateViz();
+
+// ========== DRAGGABLE EQ BANDS ==========
+let eqDragging = null; // which track element is being dragged
+let eqEnabled = true;
+
+function setEqBand(track, pct) {
+  pct = Math.max(5, Math.min(95, pct));
+  const fill = track.querySelector('.eq-slider-fill');
+  const thumb = track.querySelector('.eq-slider-thumb');
+  fill.style.height = pct + '%';
+  thumb.style.bottom = pct + '%';
+}
+
+document.querySelectorAll('.eq-slider-track').forEach(track => {
+  track.addEventListener('mousedown', (e) => {
+    if (!eqEnabled) return;
+    eqDragging = track;
+    updateEqFromMouse(e);
+    e.preventDefault();
+  });
+});
+
+function updateEqFromMouse(e) {
+  if (!eqDragging) return;
+  const rect = eqDragging.getBoundingClientRect();
+  const pct = (1 - (e.clientY - rect.top) / rect.height) * 100;
+  setEqBand(eqDragging, pct);
+}
+
+document.addEventListener('mousemove', (e) => {
+  if (eqDragging) updateEqFromMouse(e);
+  if (volDragging) updateVolFromMouse(e);
+  if (balDragging) updateBalFromMouse(e);
+  if (seekDragging) updateSeekFromMouse(e);
+  if (windowDragging) updateWindowDrag(e);
+});
+
+document.addEventListener('mouseup', () => {
+  eqDragging = null;
+  volDragging = false;
+  balDragging = false;
+  seekDragging = false;
+  if (windowDragging) {
+    windowDragging = false;
+    container.classList.remove('dragging');
+  }
+});
+
+// EQ ON/OFF toggle
+document.getElementById('eq-on-btn').addEventListener('click', function() {
+  this.classList.toggle('active');
+  eqEnabled = this.classList.contains('active');
+  document.getElementById('eq-area').classList.toggle('eq-off', !eqEnabled);
+});
+
+// EQ preset — reset all to flat 50%
+document.querySelector('.eq-preset').addEventListener('click', () => {
+  document.querySelectorAll('.eq-slider-track').forEach(track => {
+    setEqBand(track, 50);
+  });
+});
+
+// ========== DRAGGABLE VOLUME ==========
+let volDragging = false;
+const volSlider = document.querySelector('#vol-fill').parentElement;
+const volFill = document.getElementById('vol-fill');
+
+volSlider.addEventListener('mousedown', (e) => {
+  volDragging = true;
+  updateVolFromMouse(e);
+  e.preventDefault();
+});
+
+function updateVolFromMouse(e) {
+  const rect = volSlider.getBoundingClientRect();
+  const pct = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+  volFill.style.width = pct + '%';
+}
+
+// ========== DRAGGABLE BALANCE ==========
+let balDragging = false;
+const balSlider = document.querySelector('#bal-fill').parentElement;
+const balFill = document.getElementById('bal-fill');
+
+balSlider.addEventListener('mousedown', (e) => {
+  balDragging = true;
+  updateBalFromMouse(e);
+  e.preventDefault();
+});
+
+function updateBalFromMouse(e) {
+  const rect = balSlider.getBoundingClientRect();
+  const pct = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+  balFill.style.width = pct + '%';
+}
+
+// ========== DRAGGABLE SEEK BAR ==========
+let seekDragging = false;
+const seekBar = document.getElementById('seek-bar');
+const seekFill = document.getElementById('seek-fill');
+const seekThumb = document.getElementById('seek-thumb');
+let seekPct = 0;
+let seekLocked = false; // true while user is dragging
+
+seekBar.addEventListener('mousedown', (e) => {
+  seekDragging = true;
+  seekLocked = true;
+  updateSeekFromMouse(e);
+  e.preventDefault();
+});
+
+document.addEventListener('mouseup', () => {
+  if (seekLocked) {
+    seekLocked = false;
+    // jump fakeTime to match
+    fakeTime = Math.floor(seekPct / 100 * 300);
+  }
+});
+
+function updateSeekFromMouse(e) {
+  const rect = seekBar.getBoundingClientRect();
+  seekPct = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+  seekFill.style.width = seekPct + '%';
+  seekThumb.style.left = seekPct + '%';
+}
+
+// ========== TIME COUNTER ==========
+const timeDisplay = document.getElementById('time-display');
+const shadeTime = document.getElementById('shade-time');
+let fakeTime = 0;
+
+setInterval(() => {
+  if (!isPlaying) return;
+  fakeTime++;
+  if (fakeTime >= 300) fakeTime = 0;
+
+  if (!seekLocked) {
+    const pct = (fakeTime / 300) * 100;
+    seekFill.style.width = pct + '%';
+    seekThumb.style.left = pct + '%';
+  }
+
+  const min = String(Math.floor(fakeTime / 60)).padStart(2, '0');
+  const sec = String(fakeTime % 60).padStart(2, '0');
+  timeDisplay.textContent = min + ':' + sec;
+  shadeTime.textContent = min + ':' + sec;
+}, 1000);
+
+// ========== TRANSPORT BUTTONS ==========
+const transportBtns = document.querySelectorAll('#transport-row .transport-btn');
+
+document.getElementById('btn-play').addEventListener('click', function() {
+  transportBtns.forEach(b => b.classList.remove('active'));
+  this.classList.add('active');
+  isPlaying = true;
+});
+
+document.getElementById('btn-pause').addEventListener('click', function() {
+  transportBtns.forEach(b => b.classList.remove('active'));
+  this.classList.add('active');
+  isPlaying = false;
+});
+
+document.getElementById('btn-stop').addEventListener('click', function() {
+  transportBtns.forEach(b => b.classList.remove('active'));
+  this.classList.add('active');
+  isPlaying = false;
+  fakeTime = 0;
+  seekFill.style.width = '0%';
+  seekThumb.style.left = '0%';
+  timeDisplay.textContent = '00:00';
+  shadeTime.textContent = '00:00';
+});
+
+document.getElementById('btn-prev').addEventListener('click', function() {
+  fakeTime = 0;
+  seekFill.style.width = '0%';
+  seekThumb.style.left = '0%';
+  // flash active briefly
+  this.classList.add('active');
+  setTimeout(() => this.classList.remove('active'), 200);
+});
+
+document.getElementById('btn-next').addEventListener('click', function() {
+  fakeTime = 0;
+  seekFill.style.width = '0%';
+  seekThumb.style.left = '0%';
+  this.classList.add('active');
+  setTimeout(() => this.classList.remove('active'), 200);
+});
+
+document.getElementById('btn-eject').addEventListener('click', function() {
+  // Open the spotify playlist in a new tab
+  window.open('https://open.spotify.com/playlist/6iiNSBGjewuCjgCoFh21AF', '_blank');
+  this.classList.add('active');
+  setTimeout(() => this.classList.remove('active'), 300);
+});
+
+// ========== TOGGLE BUTTONS ==========
+document.getElementById('btn-eq-toggle').addEventListener('click', function() {
+  this.classList.toggle('active');
+  document.getElementById('eq-window').style.display = this.classList.contains('active') ? '' : 'none';
+});
+
+document.getElementById('btn-pl-toggle').addEventListener('click', function() {
+  this.classList.toggle('active');
+  document.getElementById('playlist-window').style.display = this.classList.contains('active') ? '' : 'none';
+});
+
+document.getElementById('btn-shuffle').addEventListener('click', function() {
+  this.classList.toggle('active');
+});
+
+document.getElementById('btn-repeat').addEventListener('click', function() {
+  this.classList.toggle('active');
+});
+
+// ========== VIZ MODE TOGGLE ==========
+// Click cycles: bars → scope → off → bars
+document.getElementById('viz-area').addEventListener('click', () => {
+  if (vizMode === 'bars') vizMode = 'scope';
+  else if (vizMode === 'scope') vizMode = 'off';
+  else vizMode = 'bars';
+});
+
+// ========== WINDOW DRAGGING ==========
+let windowDragging = false;
+let dragOffset = { x: 0, y: 0 };
+
+// All title bars are draggable
+document.querySelectorAll('.title-bar').forEach(bar => {
+  bar.addEventListener('mousedown', (e) => {
+    // Don't drag if clicking a button
+    if (e.target.classList.contains('title-bar-btn')) return;
+    windowDragging = true;
+    const rect = container.getBoundingClientRect();
+    dragOffset.x = e.clientX - rect.left;
+    dragOffset.y = e.clientY - rect.top;
+    container.classList.add('dragging');
+    e.preventDefault();
+  });
+});
+
+function updateWindowDrag(e) {
+  container.style.position = 'fixed';
+  container.style.left = (e.clientX - dragOffset.x) + 'px';
+  container.style.top = (e.clientY - dragOffset.y) + 'px';
+  container.style.transform = 'none';
+}
+
+// ========== MINIMIZE (title bar _ button) ==========
+document.querySelector('.btn-minimize').addEventListener('click', () => {
+  container.classList.remove('shade-mode');
+  container.classList.toggle('minimized');
+  if (!container.classList.contains('minimized')) {
+    setTimeout(resizeCanvas, 50);
+  }
+});
+
+// ========== SHADE MODE (title bar ▬ button) ==========
+document.querySelector('.btn-shade').addEventListener('click', () => {
+  container.classList.remove('minimized');
+  container.classList.toggle('shade-mode');
+  if (!container.classList.contains('shade-mode')) {
+    setTimeout(resizeCanvas, 50);
+  }
+});
+
+// ========== CLOSE BUTTON ==========
+document.querySelector('.btn-close').addEventListener('click', () => {
+  // Animate out, then show a tiny "reopen" button
+  container.style.transition = 'opacity 0.3s, transform 0.3s';
+  container.style.opacity = '0';
+  container.style.transform += ' scale(0.9)';
+  setTimeout(() => {
+    container.style.display = 'none';
+    reopenBtn.style.display = 'flex';
+    reopenBtn.style.opacity = '0';
+    setTimeout(() => { reopenBtn.style.opacity = '1'; }, 50);
+  }, 300);
+});
+
+// Create reopen button
+const reopenBtn = document.createElement('div');
+reopenBtn.innerHTML = '► SAMBOY RADIO';
+reopenBtn.style.cssText = `
+  display: none; position: fixed; bottom: 20px; right: 20px; z-index: 100;
+  background: linear-gradient(180deg, #3a5a3a, #1a2a1a); color: #66cc66;
+  padding: 8px 16px; border-radius: 8px; font-size: 10px; font-weight: bold;
+  letter-spacing: 1px; cursor: pointer; font-family: 'Tahoma', sans-serif;
+  border: 1px solid #2a4a2a; transition: opacity 0.3s;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  align-items: center; justify-content: center;
+`;
+reopenBtn.addEventListener('click', () => {
+  reopenBtn.style.display = 'none';
+  container.style.display = 'flex';
+  container.style.transition = 'opacity 0.3s, transform 0.3s';
+  container.style.opacity = '1';
+  container.style.transform = container.style.transform.replace(' scale(0.9)', '');
+  setTimeout(resizeCanvas, 50);
+});
+reopenBtn.addEventListener('mouseenter', () => { reopenBtn.style.filter = 'brightness(1.3)'; });
+reopenBtn.addEventListener('mouseleave', () => { reopenBtn.style.filter = ''; });
+document.body.appendChild(reopenBtn);
+
+// ========== RESIZE ==========
+window.addEventListener('resize', resizeCanvas);
+</script>
+</body>
+</html>
